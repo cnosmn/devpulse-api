@@ -16,6 +16,14 @@ export class AuthController {
 
       const user = await authService.upsertUser(validatedData);
 
+      // Trigger background sync job
+      // Note: In a real scenario, the accessToken comes from the request body or session
+      // For now, we assume it's provided in the sync request or we mock it if missing
+      const token = (req.body.accessToken as string) || (req.headers['x-github-token'] as string);
+      if (token) {
+        import('../jobs/sync-job.js').then(m => m.triggerSyncJob(user.id, token));
+      }
+
       res.status(200).json({
         success: true,
         data: {

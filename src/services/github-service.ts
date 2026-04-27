@@ -1,7 +1,9 @@
 import { AppError } from '../utils/app-error.js';
 
 interface GitHubRepo {
+  githubId: string;
   name: string;
+  fullName: string;
   description: string | null;
   url: string;
   stargazerCount: number;
@@ -69,7 +71,9 @@ export class GithubService {
         viewer {
           repositories(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}, ownerAffiliations: OWNER) {
             nodes {
+              databaseId
               name
+              nameWithOwner
               description
               url
               stargazerCount
@@ -104,7 +108,9 @@ export class GithubService {
     const data = await this.graphqlRequest(query, { since: oneYearAgo.toISOString() }, accessToken);
 
     return data.viewer.repositories.nodes.map((repo: any) => ({
+      githubId: repo.databaseId.toString(),
       name: repo.name,
+      fullName: repo.nameWithOwner,
       description: repo.description,
       url: repo.url,
       stargazerCount: repo.stargazerCount,
