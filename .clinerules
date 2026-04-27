@@ -1,0 +1,38 @@
+# devpulse-api/ (Backend) Kuralları
+
+## Stack ve Kütüphaneler
+- Node.js 20+, Express.js 4.x
+- TypeScript 5+
+- PostgreSQL, Prisma ORM
+- Zod (Body & Response Data Validation)
+- GitHub REST/GraphQL Octokit Client (veya native fetch)
+- BullMQ + Redis (Job Queue) (Veya basit Node-cron çözümleri)
+
+## Klasör Yapısı
+- `src/routes/`: Express yönlendiriciler.
+- `src/controllers/`: HTTP handle mantığı (Request yakalama, JSON response dönme).
+- `src/services/`: İş kuralları, harici requestler (Github'dan dataları senkronize eden servis).
+- `src/middlewares/`: Auth token koruyucuları, Error handler.
+- `src/prisma/`: `schema.prisma` ve migration'lar.
+- `src/jobs/`: Çalışan background task tanımları (Job runner).
+
+## Component / Modül Yazım Kuralları
+- Fonksiyonlar tek bir işi yapacak kadar küçük olmalı (Single Responsibility).
+- Her harici input ve output (özellikle router parametreleri, body formları) Zod validasyonundan geçmelidir.
+
+## State Management Kuralları
+- REST API stateless'tir. Sunucu hafızasında veri tutulmaz. Caching gerekiyorsa (opsiyonel) kısa süreli Redis kullanılabilir.
+
+## Veritabanı Sorgu Kuralları
+- Primary etkileşim aracı `Prisma Client`tır.
+- Yüksek performanslı ve çoklu satır analitik işlemler/aggregation'lar varsa (örn: "Son 30 günün aktif olduğu repo logları") Prisma'nın performansı yetersiz kalırsa `$queryRaw` ile ham SQL atılması mümkündür, fakat okunabilirlik ilk tercihtir.
+- N+1 probleminden kaçınmak için `.findMany({ include: {..} })` yapısı kontrollü kullanılmalıdır.
+
+## Test Yazım Kuralları
+- Jest ve Supertest kullanılmalıdır.
+- Özellikle Controller ve Service bazlı isolation testleri yapılacaktır. Mocking işlemleri dış servisler (GitHub api çağrıları) için zorunludur.
+
+## Uygulamaya Özel YASAK Listesi
+- `console.log` yapısı production ready işler için kullanılmaz, bunun yerine Winston, Pino gibi yapısal loglayıcılar tercih edilmelidir (MVP'de utility logger eklenir).
+- GitHub access token'lar asla logs'a veya client'a geri response olarak password gibi döndürülmez.
+- Request handle eden hiçbir controller içerisinde uzun bloke edici işlemler yapılamaz. Bu tür işler `jobs/` içine delege edilir.
