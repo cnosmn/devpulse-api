@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import authService from '../services/auth-service.js';
+import { triggerSyncJob } from '../jobs/sync-job.js';
 
 const syncUserSchema = z.object({
   githubId: z.string().or(z.number().transform(val => val.toString())),
@@ -17,11 +18,12 @@ export class AuthController {
       const user = await authService.upsertUser(validatedData);
 
       // Trigger background sync job
-      // Note: In a real scenario, the accessToken comes from the request body or session
-      // For now, we assume it's provided in the sync request or we mock it if missing
       const token = (req.body.accessToken as string) || (req.headers['x-github-token'] as string);
       if (token) {
-        import('../jobs/sync-job.js').then(m => m.triggerSyncJob(user.id, token));
+        console.log(`Triggering sync for user ${user.id} with token starting with ${token.substring(0, 7)}...`);
+        triggerSyncJob(user.id, token);
+      } else {
+        console.warn(`No token provided for background sync for user ${user.id}`);
       }
 
       res.status(200).json({

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { errorHandler } from './middlewares/error-handler.js';
 import { AppError } from './utils/app-error.js';
 import authRoutes from './routes/auth-routes.js';
+import metricsRoutes from './routes/metrics-routes.js';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use('/v1/auth', authRoutes);
+app.use('/v1/metrics', metricsRoutes);
 
 app.get('/', (req, res) => {
   res.json({
