@@ -18,6 +18,13 @@ interface GitHubRepo {
   };
 }
 
+interface GitHubProfile {
+  id: number;
+  login: string;
+  email: string | null;
+  avatar_url: string;
+}
+
 export class GithubService {
   private readonly GRAPHQL_URL = 'https://api.github.com/graphql';
 
@@ -120,6 +127,26 @@ export class GithubService {
       })),
       lastCommit: repo.defaultBranchRef?.target?.history?.nodes[0] || null,
     }));
+  }
+
+  async getProfile(accessToken: string): Promise<GitHubProfile> {
+    const response = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new AppError(
+        errorData.message || 'Failed to fetch GitHub profile',
+        response.status,
+        'GITHUB_PROFILE_ERROR'
+      );
+    }
+
+    return await response.json();
   }
 }
 
