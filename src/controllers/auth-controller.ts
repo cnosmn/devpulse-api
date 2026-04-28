@@ -22,7 +22,7 @@ export class AuthController {
       const user = await authService.verifyAndSyncUser(accessToken, githubId, validatedData);
 
       // Trigger background sync job
-      console.log(`Triggering sync for user ${user.id} with token starting with ${accessToken.substring(0, 7)}...`);
+      console.log(`Triggering sync for user ${user.id}...`);
       triggerSyncJob(user.id, accessToken);
 
       res.status(200).json({
