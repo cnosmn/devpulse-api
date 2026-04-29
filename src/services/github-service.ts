@@ -11,11 +11,11 @@ interface GitHubRepo {
     name: string;
     color: string;
   }[];
-  lastCommit?: {
+  commits: {
     message: string;
     committedDate: string;
     oid: string;
-  };
+  }[];
 }
 
 interface GitHubProfile {
@@ -71,11 +71,11 @@ export class GithubService {
     return result.data;
   }
 
-  async fetchUserData(accessToken: string): Promise<GitHubRepo[]> {
+  async fetchUserData(accessToken: string, userGithubId: string): Promise<GitHubRepo[]> {
     const query = `
       query ($since: GitTimestamp) {
         viewer {
-          repositories(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}, ownerAffiliations: OWNER) {
+          repositories(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
             nodes {
               databaseId
               name
@@ -92,11 +92,16 @@ export class GithubService {
               defaultBranchRef {
                 target {
                   ... on Commit {
-                    history(first: 1, since: $since) {
+                    history(first: 100, since: $since) {
                       nodes {
                         message
                         committedDate
                         oid
+                        author {
+                          user {
+                            databaseId
+                          }
+                        }
                       }
                     }
                   }
@@ -108,10 +113,10 @@ export class GithubService {
       }
     `;
 
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    const data = await this.graphqlRequest(query, { since: oneYearAgo.toISOString() }, accessToken);
+    const data = await this.graphqlRequest(query, { since: ninetyDaysAgo.toISOString() }, accessToken);
 
     return data.viewer.repositories.nodes.map((repo: any) => ({
       githubId: repo.databaseId.toString(),
@@ -124,8 +129,57 @@ export class GithubService {
         name: lang.name,
         color: lang.color,
       })),
-      lastCommit: repo.defaultBranchRef?.target?.history?.nodes[0] || null,
+      commits: (repo.defaultBranchRef?.target?.history?.nodes || [])
+        .filter((c: any) => c.author?.user?.databaseId?.toString() === userGithubId)
+        .map((c: any) => ({
+          message: c.message,
+          committedDate: c.committedDate,
+          oid: c.oid,
+        })),
     }));
+  }
+
+  async fetchContributionGraph(accessToken: string, username: string) {
+    const query = `
+      query ($login: String!) {
+        user(login: $login) {
+          contributionsCollection {
+            contributionCalendar {
+              totalContributions
+              weeks {
+                contributionDays {
+                  contributionCount
+                  date
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const data = await this.graphqlRequest(query, { login: username }, accessToken);
+    
+    if (!data?.user?.contributionsCollection?.contributionCalendar) {
+      throw new Error("Could not fetch contribution calendar");
+    }
+
+    const calendar = data.user.contributionsCollection.contributionCalendar;
+    const days: { date: string; count: number }[] = [];
+    
+    calendar.weeks.forEach((week: any) => {
+      week.contributionDays.forEach((day: any) => {
+        days.push({
+          date: day.date,
+          count: day.contributionCount,
+        });
+      });
+    });
+
+    return {
+      totalContributions: calendar.totalContributions,
+      days: days.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    };
   }
 
   async getProfile(accessToken: string): Promise<GitHubProfile> {

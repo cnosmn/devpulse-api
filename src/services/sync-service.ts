@@ -6,7 +6,15 @@ export class SyncService {
     try {
       console.log(`Starting GitHub sync for user ${userId}...`);
       
-      const repos = await githubService.fetchUserData(accessToken);
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new Error('User not found');
+
+      // Clear old dirty commits to ensure absolute accuracy
+      await prisma.commit.deleteMany({
+        where: { repository: { userId } },
+      });
+
+      const repos = await githubService.fetchUserData(accessToken, user.githubId);
       
       for (const repo of repos) {
         // 1. Sync Repository
@@ -21,6 +29,7 @@ export class SyncService {
             url: repo.url,
             stargazerCount: repo.stargazerCount,
             languages: repo.languages as any,
+            userId: userId,
           },
           create: {
             githubId: repo.githubId,
@@ -34,24 +43,20 @@ export class SyncService {
           },
         });
 
-        // 2. Sync Last Commit if exists
-        if (repo.lastCommit) {
-          await prisma.commit.upsert({
-            where: {
-              sha: repo.lastCommit.oid,
-            },
-            update: {
-              message: repo.lastCommit.message,
-              date: new Date(repo.lastCommit.committedDate),
-            },
-            create: {
-              sha: repo.lastCommit.oid,
-              message: repo.lastCommit.message,
-              date: new Date(repo.lastCommit.committedDate),
-              repositoryId: savedRepo.id,
-              authorName: null, // Explicitly null since it's optional
-              authorEmail: null,
-            },
+        // 2. Sync All Commits
+        if (repo.commits && repo.commits.length > 0) {
+          const commitData = repo.commits.map((commit: any) => ({
+            sha: commit.oid,
+            message: commit.message,
+            date: new Date(commit.committedDate),
+            repositoryId: savedRepo.id,
+            authorName: null, // Explicitly null since it's optional
+            authorEmail: null,
+          }));
+
+          await prisma.commit.createMany({
+            data: commitData,
+            skipDuplicates: true, // Prevents errors if commits already exist
           });
         }
       }
