@@ -21,7 +21,10 @@ export class AnalyticsController {
         });
       }
       
-      const analytics = await analyticsService.getUserAnalytics(user.id);
+      const authHeader = req.headers.authorization;
+      const accessToken = authHeader?.split(' ')[1];
+      
+      const analytics = await analyticsService.getUserAnalytics(user, accessToken);
 
       res.status(200).json({
         success: true,

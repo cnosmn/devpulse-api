@@ -1,7 +1,10 @@
+import githubService from './github-service.js';
 import { prisma } from '../prisma/client.js';
+import { User } from '@prisma/client';
 
 export class AnalyticsService {
-  async getUserAnalytics(userId: number) {
+  async getUserAnalytics(user: User, accessToken?: string) {
+    const userId = user.id;
     const commits = await prisma.commit.findMany({
       where: {
         repository: {
@@ -13,7 +16,7 @@ export class AnalyticsService {
       },
     });
 
-    // 1. Hourly Distribution
+    // 1. Hourly Distribution (From DB Commits)
     const hourlyData = Array.from({ length: 24 }, (_, i) => ({
       hour: `${i.toString().padStart(2, '0')}:00`,
       count: 0,
@@ -24,17 +27,38 @@ export class AnalyticsService {
       hourlyData[hour].count += 1;
     });
 
-    // 2. Daily Distribution
+    // 2. Daily Distribution (From Live GitHub Contribution Graph if available)
     const days = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-    const dailyData = days.map(day => ({ day, count: 0 }));
+    let dailyData = days.map(day => ({ day, count: 0 }));
 
-    commits.forEach(commit => {
-      // getDay() returns 0 for Sunday, 1 for Monday...
-      let dayIndex = new Date(commit.date).getDay();
-      // Adjust to Mon-Sun (0-6)
-      dayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
-      dailyData[dayIndex].count += 1;
-    });
+    if (accessToken) {
+      try {
+        const githubGraph = await githubService.fetchContributionGraph(accessToken, user.username);
+        
+        // Aggregate 1-year contribution graph into Day of Week distribution
+        githubGraph.days.forEach(day => {
+          let dayIndex = new Date(day.date).getDay();
+          // Adjust to Mon-Sun (0-6)
+          dayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+          dailyData[dayIndex].count += day.count;
+        });
+      } catch (e) {
+        console.error("Failed to fetch live contribution graph for analytics:", e);
+        // Fallback to DB commits for the last 90 days if GitHub fails
+        commits.forEach(commit => {
+          let dayIndex = new Date(commit.date).getDay();
+          dayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+          dailyData[dayIndex].count += 1;
+        });
+      }
+    } else {
+      // Fallback if no accessToken
+      commits.forEach(commit => {
+        let dayIndex = new Date(commit.date).getDay();
+        dayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+        dailyData[dayIndex].count += 1;
+      });
+    }
 
     // 3. Language Distribution (Aggregated)
     const repos = await prisma.repository.findMany({
