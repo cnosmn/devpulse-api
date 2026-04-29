@@ -6,6 +6,7 @@ import { AppError } from './utils/app-error.js';
 import authRoutes from './routes/auth-routes.js';
 import metricsRoutes from './routes/metrics-routes.js';
 import projectsRoutes from './routes/projects-routes.js';
+import './jobs/sync-worker.js'; // Start BullMQ Worker
 
 dotenv.config();
 

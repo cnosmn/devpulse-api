@@ -40,14 +40,13 @@ export class GithubService {
 
     // Rate Limit Handling
     const remaining = response.headers.get('x-ratelimit-remaining');
-    const reset = response.headers.get('x-ratelimit-reset');
 
     if (remaining && parseInt(remaining) < 10) {
-      const waitTime = reset ? (parseInt(reset) * 1000 - Date.now()) : 5000;
-      if (waitTime > 0) {
-        console.warn(`GitHub Rate Limit low. Waiting ${waitTime}ms...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-      }
+      throw new AppError(
+        'GitHub Rate Limit low, retrying via queue...',
+        429,
+        'GITHUB_RATE_LIMIT'
+      );
     }
 
     if (!response.ok) {

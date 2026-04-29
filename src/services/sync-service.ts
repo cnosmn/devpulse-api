@@ -59,6 +59,7 @@ export class SyncService {
       console.log(`Successfully synced ${repos.length} repositories for user ${userId}.`);
     } catch (error: any) {
       console.error(`Failed to sync GitHub data for user ${userId}:`, error.message);
+      throw error;
     }
   }
 }

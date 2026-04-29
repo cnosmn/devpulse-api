@@ -1,7 +1,7 @@
 import { prisma } from '../prisma/client.js';
 
 export class ScoreService {
-  async calculateUserScore(userId: number) {
+  async calculateUserScore(userId: number, timezone: string = 'UTC') {
     const now = new Date();
     const currentWeekStart = new Date(now);
     currentWeekStart.setDate(now.getDate() - 7);
@@ -35,10 +35,21 @@ export class ScoreService {
 
     // 4. Find Most Active Day (Current Week)
     const dayCounts: Record<string, number> = {};
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
     currentWeekCommits.forEach(c => {
-      const dayName = days[c.date.getUTCDay()];
+      let dayName: string;
+      try {
+        dayName = new Intl.DateTimeFormat('en-US', { 
+          weekday: 'long', 
+          timeZone: timezone 
+        }).format(c.date);
+      } catch (e) {
+        // Fallback to UTC if timezone is invalid
+        dayName = new Intl.DateTimeFormat('en-US', { 
+          weekday: 'long', 
+          timeZone: 'UTC' 
+        }).format(c.date);
+      }
       dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
     });
 
