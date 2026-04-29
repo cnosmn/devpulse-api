@@ -57,13 +57,13 @@ export class MetricsController {
       const { userId: githubId, timezone } = getOverviewSchema.parse(req.query);
       
       const user = await prisma.user.findUnique({ where: { githubId } });
-
+      
       if (!user) {
         return res.status(404).json({ success: false, error: { message: 'User not found' } });
       }
       
       const scoreData = await scoreService.calculateUserScore(user.id, timezone);
-
+      
       res.status(200).json({
         success: true,
         data: scoreData,
