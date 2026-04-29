@@ -6,6 +6,7 @@ import { AppError } from './utils/app-error.js';
 import authRoutes from './routes/auth-routes.js';
 import metricsRoutes from './routes/metrics-routes.js';
 import projectsRoutes from './routes/projects-routes.js';
+import activityRoutes from './routes/activity-routes.js';
 import './jobs/sync-worker.js'; // Start BullMQ Worker
 
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use('/v1/auth', authRoutes);
 app.use('/v1/metrics', metricsRoutes);
 app.use('/v1/projects', projectsRoutes);
+app.use('/v1/activities', activityRoutes);
 
 app.get('/', (req, res) => {
   res.json({
