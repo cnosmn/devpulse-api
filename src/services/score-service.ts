@@ -39,13 +39,13 @@ export class ScoreService {
     currentWeekCommits.forEach(c => {
       let dayName: string;
       try {
-        dayName = new Intl.DateTimeFormat('en-US', { 
+        dayName = new Intl.DateTimeFormat('tr-TR', { 
           weekday: 'long', 
           timeZone: timezone 
         }).format(c.date);
       } catch (e) {
         // Fallback to UTC if timezone is invalid
-        dayName = new Intl.DateTimeFormat('en-US', { 
+        dayName = new Intl.DateTimeFormat('tr-TR', { 
           weekday: 'long', 
           timeZone: 'UTC' 
         }).format(c.date);
